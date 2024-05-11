@@ -1,3 +1,7 @@
+// The fastdb package creates a pair of sqlite3 clients which
+// are optimised for performance: a read-only client which supports
+// parallel operations, and a read-write client which only supports
+// one write at a time.
 package fastdb
 
 import (
@@ -61,24 +65,35 @@ type FastDB interface {
 	Writer() *sql.DB
 }
 
+// Close will close the underlying sqlite3 clients, returning
+// any resultant error.
 func (r *rw) Close() error {
 	if r.writer != nil {
-		r.writer.Close()
+		if err := r.writer.Close(); err != nil {
+			return err
+		}
 	}
 	if r.reader != nil {
-		r.reader.Close()
+		if err := r.reader.Close(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
+// Reader returns a read-only sqlite3 client
 func (r *rw) Reader() *sql.DB {
 	return r.reader
 }
 
+// Writer returns a read-write sqlite3 client
 func (r *rw) Writer() *sql.DB {
 	return r.writer
 }
 
+// Open creates a FastDB wrapper around the sqlite3 database
+// located at filename. If there is a problem opening either
+// of the underlying clients, that error is returned.
 func Open(filename string) (*rw, error) {
 	connectionUrlParams := make(url.Values)
 	connectionUrlParams.Add("_txlock", "immediate")

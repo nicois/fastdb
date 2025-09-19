@@ -26,7 +26,7 @@ func (t *Time) Scan(val any) (err error) {
 	case string:
 		tt, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to parse the time using RFC3339: %w", err)
 		}
 		*t = Time(tt.UnixMilli())
 		return nil
@@ -47,7 +47,7 @@ func setupSqlite(db *sql.DB) (err error) {
 	for _, pragma := range pragmas {
 		_, err = db.Exec("PRAGMA " + pragma)
 		if err != nil {
-			return
+			return fmt.Errorf("unknown pragma %q: %w", pragma, err)
 		}
 	}
 
@@ -70,12 +70,12 @@ type FastDB interface {
 func (r *rw) Close() error {
 	if r.writer != nil {
 		if err := r.writer.Close(); err != nil {
-			return err
+			return fmt.Errorf("cannot close the writer: %w", err)
 		}
 	}
 	if r.reader != nil {
 		if err := r.reader.Close(); err != nil {
-			return err
+			return fmt.Errorf("cannot close the reader: %w", err)
 		}
 	}
 	return nil
@@ -108,23 +108,23 @@ func Open(filename string) (*rw, error) {
 
 	writeDB, err := sql.Open("sqlite3", connectionUrl)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to open the connection URL for writing: %w", err)
 	}
 	writeDB.SetMaxOpenConns(1)
 	err = setupSqlite(writeDB)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to set up the database for writing: %w", err)
 	}
 	r.writer = writeDB
 
 	readDB, err := sql.Open("sqlite3", connectionUrl)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to open the connection URL for reading: %w", err)
 	}
 	readDB.SetMaxOpenConns(max(4, runtime.NumCPU()))
 	err = setupSqlite(readDB)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to set up the database for reading: %w", err)
 	}
 	r.reader = readDB
 
